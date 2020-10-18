@@ -7,15 +7,25 @@ import json
 import logging
 
 import sys
+# sys.setrecursionlimit(10**6)
 import os
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(PROJECT_ROOT)
 sys.path.insert(0, BASE_DIR)
 
-from models.post import Post
 from models.profile import Profile
+from models.post import Post
 
 class Instagram:
+    def get_profile(username: str) -> Profile:
+        try:
+            profile = Instagram.get_profile_data(username)
+            profile.posts = Instagram.get_users_posts(username)
+            return profile
+        except Exception as e:
+            logging.error(e)
+            raise e
+
     def get_profile_data(username: str) -> Profile:
         try:
             user = InstagramUser(username)
@@ -45,6 +55,7 @@ class Instagram:
         except Exception as e:
             logging.error(e)
             raise e
+
     """ def get_profile_data(username: str) -> Profile:
         try:
             result = ie.user(username)
@@ -71,5 +82,3 @@ class Instagram:
         except Exception as e:
             logging.error(e)
             raise e """
-
-
