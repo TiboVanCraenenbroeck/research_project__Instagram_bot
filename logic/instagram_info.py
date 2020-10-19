@@ -1,4 +1,5 @@
 # import the modules
+from time import sleep
 from typing import List
 import instagram_explore as ie
 from instagramy import InstagramUser, InstagramHashTag
@@ -7,14 +8,20 @@ import logging
 from datetime import datetime
 import sys
 import os
+import time
+import numpy as np
+
+from selenium.webdriver.common.keys import Keys
+
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(PROJECT_ROOT)
 sys.path.insert(0, BASE_DIR)
 
-from models.profile import Profile
-from models.post import Post
+from logic.browser import Browser
 from models.location import Location
+from models.post import Post
+from models.profile import Profile
 
 class InstagramInfo:
     def get_profile(username: str) -> Profile:
@@ -60,7 +67,8 @@ class InstagramInfo:
                                             name=post_more_information["location"]["name"], slug=post_more_information["location"]["slug"], address_json=address_json)
                         post.location = location
                     except Exception as e:
-                        logging.warning(f"Could not get location from {username} - {e}")
+                        logging.warning(
+                            f"Could not get location from {username} - {e}")
                 user_posts.append(post)
             return user_posts
         except Exception as e:
@@ -91,9 +99,8 @@ class InstagramInfo:
 
                     post_more_information = ie.media(shortcode).data
 
-
                     post: Post = Post(id=id, shortcode=shortcode, url=url, likes=likes, comments=comments, caption=caption,
-                                    edge_media_to_caption=edge_media_to_caption, is_video=is_video, time_stamp=time_stamp, found_by_tag=found_by_tag)
+                                      edge_media_to_caption=edge_media_to_caption, is_video=is_video, time_stamp=time_stamp, found_by_tag=found_by_tag)
 
                     if post_more_information["location"] is not None:
                         address_json = json.dumps(
@@ -103,12 +110,14 @@ class InstagramInfo:
                         post.location = location
 
                     # Get userinfo
-                    username:str = post_more_information["owner"]["username"]
-                    userinfo: Profile = InstagramInfo.get_profile_data(username)
+                    username: str = post_more_information["owner"]["username"]
+                    userinfo: Profile = InstagramInfo.get_profile_data(
+                        username)
                     userinfo.posts.append(post)
                     list_posts.append(userinfo)
                 except Exception as e:
-                    logging.warning(f"Could not get location from {post_tag} - {e}")
+                    logging.warning(
+                        f"Could not get location from {post_tag} - {e}")
             return list_posts
         except Exception as e:
             logging.error(e)
@@ -118,5 +127,45 @@ class InstagramInfo:
             logging.error(e)
             raise e
 
-    def get_likers_by_post():
-        pass
+    def get_likers_by_post(post_shortcode: str) -> List[str]:
+        driver = Browser(0)
+        driver.webdriver.get(f'https://www.instagram.com/p/{post_shortcode}/')
+        sleep(np.random.uniform(1, 3))
+        userid_element = driver.webdriver.find_elements_by_xpath(
+            '//*[@id="react-root"]/section/main/div/div[1]/article/div[3]/section[2]/div/div/button')[0].click()
+        time.sleep(2)
+
+        users = []
+
+        height_xpath: str = "/html/body/div[4]/div/div/div[2]/div/div"
+        height = driver.webdriver.find_element_by_xpath(
+            height_xpath).value_of_css_property("padding-top")
+        sleep(np.random.uniform(1, 3))
+        match = False
+        while match == False:
+            lastHeight = height
+
+            # step 1
+            elements = driver.webdriver.find_elements_by_xpath(
+                "//*[@id]/div/span/a")
+
+            sleep(np.random.uniform(1, 3))
+
+            # step 2
+            for element in elements:
+                if element.get_attribute('title') not in users:
+                    users.append(element.get_attribute('title'))
+
+            # step 3
+            driver.webdriver.execute_script(
+                "return arguments[0].scrollIntoView();", elements[-1])
+            sleep(np.random.uniform(1, 3))
+
+            # step 4
+            height = driver.webdriver.find_element_by_xpath(
+                height_xpath).value_of_css_property("padding-top")
+            sleep(np.random.uniform(1, 3))
+            if lastHeight == height:
+                match = True
+        driver.close()
+        return users
